@@ -29,7 +29,8 @@ public class Program {
 	while (!flag) {
 
 	    System.out.println("[ 1 ] - Adicionar Vendedor");
-	    System.out.println("[ 2 ] - Imprimir Tabela Vendedor");
+	    System.out.println("[ 2 ] - Atualizar Dados");
+	    System.out.println("[ 3 ] - Imprimir Tabela Vendedor");
 	    System.out.println("[ 4 ] - SAIR");
 	    int op = scan.nextInt();
 
@@ -71,6 +72,9 @@ public class Program {
 		    DB.closeResultSet(imprimir);
 		}
 	    case 2:
+		System.out.println("ops... essa função ainda não está disponível :( volte mais tarde");
+		break;
+	    case 3:
 		Statement stm = null;
 		ResultSet rs = null;
 		try {
@@ -83,7 +87,7 @@ public class Program {
 		    rs = stm.executeQuery("select * from seller, department"
 		    	+ " where seller.DepartmentId = department.Id");
 		    
-		    System.out.println("ID | NOME   | BIRTHDATE  | SALARY  | DEPARTMENT ID");
+		    System.out.println("ID  |  NOME   |  BIRTHDATE   |   SALARY   | DEPARTMENT ID");
 		    while (rs.next()) {
 			System.out.println(rs.getInt("Id") + ", " + rs.getString("Name")
 			+ ", " + rs.getDate("BirthDate", sdf.getCalendar())

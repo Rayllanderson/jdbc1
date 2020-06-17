@@ -30,8 +30,9 @@ public class Program {
 
 	    System.out.println("[ 1 ] - Adicionar Vendedor");
 	    System.out.println("[ 2 ] - Atualizar Dados");
-	    System.out.println("[ 3 ] - Imprimir Tabela Vendedor");
-	    System.out.println("[ 4 ] - SAIR");
+	    System.out.println("[ 3 ] - Apagar Dados");
+	    System.out.println("[ 4 ] - Imprimir Tabela Vendedor");
+	    System.out.println("[ 5 ] - SAIR");
 	    int op = scan.nextInt();
 
 	    switch (op) {
@@ -40,8 +41,9 @@ public class Program {
 		System.out.println("Adicionar vendedor");
 		System.out.print("Nome: ");
 		try {
-
+		    
 		    Connection c1 = DB.getConnection();
+		    c1.setAutoCommit(false);
 		    Statement s1 = c1.createStatement();
 		    imprimir = s1.executeQuery("select Id, Name from department");
 
@@ -60,7 +62,9 @@ public class Program {
 		    int department = scan.nextInt();
 
 		    addSeller(coon, st, nome, email, date, salary, department);
-
+		    
+		    confirmarTransacao(c1);
+		    
 		    System.out.println();
 		    break;
 
@@ -72,25 +76,27 @@ public class Program {
 		    DB.closeResultSet(imprimir);
 		}
 	    case 2:
-		Statement stImp = null;
-		PreparedStatement stA = null;
-		ResultSet rsImp = null;
+		Statement stImprimir = null;
+		PreparedStatement stAlterar = null;
+		ResultSet rsImprimir = null;
 		ResultSetMetaData rsmd = null;
 
 		try {
 		    if (coon == null) {
 			coon = DB.getConnection();
 		    }
-		    stImp = coon.createStatement();
-		    rsImp = stImp.executeQuery("select * from seller");
-		    imprimirColunas(rsImp, rsmd);
+		    coon.setAutoCommit(false);
+		    stImprimir = coon.createStatement();
+		    rsImprimir = stImprimir.executeQuery("select * from seller");
+		    imprimirColunas(rsImprimir, rsmd);
 		    System.out.println("\nQual campo você gostaria de atualizar? ");
 		    int num = scan.nextInt();
-		    String opcaoAlterar = escolha(rsImp, rsmd, num);
-		    imprimirIdName(rsImp, stImp, opcaoAlterar);
+		    String opcaoAlterar = escolha(rsImprimir, rsmd, num);
+		    imprimirIdName(rsImprimir, stImprimir, opcaoAlterar);
 		    int id = scan.nextInt();
-		    imprimirADdosAtuais(rsImp, stImp, opcaoAlterar, id);
-		    atualizarDados(opcaoAlterar, id, stA, coon);
+		    imprimirADdosAtuais(rsImprimir, stImprimir, opcaoAlterar, id);
+		    atualizarDados(opcaoAlterar, id, stAlterar, coon);
+		    confirmarTransacao(coon);
 		    break;
 
 		} catch (SQLException e) {
@@ -98,15 +104,14 @@ public class Program {
 		} catch (ParseException e) {
 		    e.printStackTrace();
 		} finally {
-		    DB.closeResultSet(rsImp);
-		    DB.closeStatement(stA);
-		    DB.closeStatement(stImp);
+		    DB.closeResultSet(rsImprimir);
+		    DB.closeStatement(stAlterar);
+		    DB.closeStatement(stImprimir);
 		}
-
-		// System.out.println("ops... essa função ainda não está disponível :( volte
-		// mais tarde");
-
 	    case 3:
+		System.out.println("ops... essa função ainda não está disponível :( volte mais tarde");
+		break;
+	    case 4:
 		Statement stm = null;
 		ResultSet rs = null;
 		try {
@@ -117,7 +122,7 @@ public class Program {
 		    stm = coon.createStatement();
 
 		    rs = stm.executeQuery(
-			    "select * from seller, department" + " where seller.DepartmentId = department.Id");
+			    "select * from seller, department" + " where seller.DepartmentId = department.Id order by seller.Id");
 
 		    System.out.println("ID  |  NOME   |  BIRTHDATE   |   SALARY   | DEPARTMENT ID");
 		    while (rs.next()) {
@@ -132,7 +137,7 @@ public class Program {
 		    DB.closeResultSet(rs);
 		}
 
-	    case 4:
+	    case 5:
 
 		DB.closeStatement(st);
 		DB.closeConnection();
@@ -143,7 +148,7 @@ public class Program {
 	scan.close();
     }
 
-    public static void addSeller(Connection coon, PreparedStatement st, String nome, String email, Date date,
+    private static void addSeller(Connection coon, PreparedStatement st, String nome, String email, Date date,
 	    double salary, int department) {
 
 	coon = DB.getConnection();
@@ -161,12 +166,12 @@ public class Program {
 	    int afectedRows = st.executeUpdate();
 	    rs = st.getGeneratedKeys();
 
-	    System.out.println("Done!\nLinhas Afetadas: " + afectedRows);
-	    while (rs.next()) {
+	    //System.out.println("Done!\nLinhas Afetadas: " + afectedRows);
+	    /*while (rs.next()) {
 		int id = rs.getInt(1);
 		System.out.println("Novo cadastro, ID: " + id);
 	    }
-
+*/
 	} catch (SQLException e) {
 	    throw new DbException(e.getMessage());
 	} finally {
@@ -174,7 +179,7 @@ public class Program {
 	}
     }
 
-    public static void imprimirColunas(ResultSet rsImp, ResultSetMetaData rsmd) throws SQLException {
+    private static void imprimirColunas(ResultSet rsImp, ResultSetMetaData rsmd) throws SQLException {
 
 	rsmd = rsImp.getMetaData();
 	int columnCount;
@@ -201,15 +206,15 @@ public class Program {
 		System.out.println(rsImp.getString("Name") + " - " + rsImp.getDouble(opcaoAlterar));
 	    } else if (opcaoAlterar.equals("Name") || opcaoAlterar.equals("Email")) {
 		System.out.println(rsImp.getString("Name") + " - " + rsImp.getString(opcaoAlterar));
-	    } else if (opcaoAlterar.equals("DepartmentId")){
+	    } else if (opcaoAlterar.equals("DepartmentId")) {
 		System.out.println(rsImp.getString("Name") + " - " + rsImp.getInt(opcaoAlterar));
-	    }else {
+	    } else {
 		System.out.println(rsImp.getString("Name") + " - " + rsImp.getDate(opcaoAlterar));
 	    }
 	}
     }
 
-    public static String escolha(ResultSet rsImp, ResultSetMetaData rsmd, int num) {
+    private static String escolha(ResultSet rsImp, ResultSetMetaData rsmd, int num) {
 	try {
 	    rsmd = rsImp.getMetaData();
 	    return rsmd.getColumnName(num);
@@ -231,7 +236,7 @@ public class Program {
 
     }
 
-    public static void atualizarDados(String opcaoAlterar, int id, PreparedStatement stA, Connection coon)
+    private static void atualizarDados(String opcaoAlterar, int id, PreparedStatement stA, Connection coon)
 	    throws SQLException, ParseException {
 	stA = coon.prepareStatement("update seller set " + opcaoAlterar + " = ? where Id = " + id);
 
@@ -241,21 +246,58 @@ public class Program {
 	    stA.setDouble(1, newSalary);
 
 	} else if (opcaoAlterar.equals("Name") || opcaoAlterar.equals("Email")) {
-	    System.out.print("Novo valor: ");
+	    if (opcaoAlterar.equals("Name")){
+		System.out.print("Novo nome: ");
+	    }
+	    if (opcaoAlterar.equals("Email")) {
+		System.out.print("Novo Email: ");
+	    }
+	    scan.nextLine();
 	    String newValue = scan.nextLine();
 	    stA.setString(1, newValue);
 	} else if (opcaoAlterar.equals("DepartmentId")) {
 	    System.out.print("Novo valor: ");
 	    int deparmentId = scan.nextInt();
 	    stA.setInt(1, deparmentId);
-	}else {
+	} else {
 	    System.out.print("Nova data (dd/mm/aaaa): ");
 	    Date date = sdf.parse(scan.next());
 	    stA.setDate(1, new java.sql.Date(date.getTime()));
 	}
 
 	int rowsAfected = stA.executeUpdate();
-	System.out.println("Done! Linhas Afetadas: " + rowsAfected);
+	System.out.println("Done!"); //Linhas Afetadas: " + rowsAfected);
+    }
+
+    private static boolean confirmaTransacao(Connection coon) {
+	System.out.println("Você tem certeza que deseja confirmar?");
+	System.out.println("[ 1 ] - SIM");
+	System.out.println("[ 2 ] - NÃO");
+	try {
+	    int op = scan.nextInt();
+	    if (op == 1) {
+		coon.commit();
+		return true;
+	    }else
+		coon.rollback();
+	    return false;
+
+	} catch (SQLException e) {
+	    try {
+		coon.rollback();
+		throw new DbException("Transação falhou! Banco de dados voltando ao estado anterior\nMotivo: " + e.getMessage());
+	    } catch (SQLException e1) {
+		throw new DbException("Ops... erro ao tentar voltar a transação.\nMotivo: " + e1.getMessage());
+	    }
+	}
+    }
+    
+    public static void confirmarTransacao(Connection conn) {
+	if (confirmaTransacao(conn)) {
+		System.out.println("Done!");
+	    }else {
+		System.out.println("Dados não foram salvos");
+	    }
     }
 
 }

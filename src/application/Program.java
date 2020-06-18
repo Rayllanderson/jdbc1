@@ -22,9 +22,7 @@ public class Program {
     public static void main(String[] args) {
 
 	boolean flag = false;
-
 	Connection coon = null;
-	PreparedStatement st = null;
 
 	while (!flag) {
 
@@ -37,14 +35,14 @@ public class Program {
 
 	    switch (op) {
 	    case 1:
+		PreparedStatement st = null;
 		ResultSet imprimir = null;
 		System.out.println("Adicionar vendedor");
 		System.out.print("Nome: ");
 		try {
-		    
-		    Connection c1 = DB.getConnection();
-		    c1.setAutoCommit(false);
-		    Statement s1 = c1.createStatement();
+		    coon = DB.getConnection();
+		    coon.setAutoCommit(false);
+		    Statement s1 = coon.createStatement();
 		    imprimir = s1.executeQuery("select Id, Name from department");
 
 		    scan.nextLine();
@@ -62,9 +60,9 @@ public class Program {
 		    int department = scan.nextInt();
 
 		    addSeller(coon, st, nome, email, date, salary, department);
-		    
-		    confirmarTransacao(c1);
-		    
+
+		    confirmarTransacao(coon);
+
 		    System.out.println();
 		    break;
 
@@ -73,6 +71,7 @@ public class Program {
 		} catch (SQLException e) {
 		    e.printStackTrace();
 		} finally {
+		    DB.closeStatement(st);
 		    DB.closeResultSet(imprimir);
 		}
 	    case 2:
@@ -82,9 +81,7 @@ public class Program {
 		ResultSetMetaData rsmd = null;
 
 		try {
-		    if (coon == null) {
-			coon = DB.getConnection();
-		    }
+		    coon = DB.getConnection();
 		    coon.setAutoCommit(false);
 		    stImprimir = coon.createStatement();
 		    rsImprimir = stImprimir.executeQuery("select * from seller");
@@ -92,7 +89,8 @@ public class Program {
 		    System.out.println("\nQual campo você gostaria de atualizar? ");
 		    int num = scan.nextInt();
 		    String opcaoAlterar = escolha(rsImprimir, rsmd, num);
-		    imprimirIdName(rsImprimir, stImprimir, opcaoAlterar);
+		    System.out.println("Escolha pelo ID a pessoa que você deseja alterar o " + opcaoAlterar);
+		    imprimirIdName(rsImprimir, stImprimir);
 		    int id = scan.nextInt();
 		    imprimirADdosAtuais(rsImprimir, stImprimir, opcaoAlterar, id);
 		    atualizarDados(opcaoAlterar, id, stAlterar, coon);
@@ -109,6 +107,26 @@ public class Program {
 		    DB.closeStatement(stImprimir);
 		}
 	    case 3:
+
+		Statement statement = null;
+		PreparedStatement pStatement = null;
+		ResultSet rs1 = null;
+		try {
+		    coon = DB.getConnection();
+		    coon.setAutoCommit(false);
+		    statement = coon.createStatement();
+		    pStatement = coon.prepareStatement("delete from seller where Id = ?");
+		    System.out.println("Esolha quem você deseja apagar");
+		    imprimirIdName(rs1, statement);
+		    int escolha = scan.nextInt();
+		    pStatement.setInt(1, escolha);
+		    pStatement.executeUpdate();
+		    confirmarTransacao(coon);
+		    break;
+		} catch (SQLException e) {
+		    e.printStackTrace();
+		}
+
 		System.out.println("ops... essa função ainda não está disponível :( volte mais tarde");
 		break;
 	    case 4:
@@ -121,8 +139,8 @@ public class Program {
 
 		    stm = coon.createStatement();
 
-		    rs = stm.executeQuery(
-			    "select * from seller, department" + " where seller.DepartmentId = department.Id order by seller.Id");
+		    rs = stm.executeQuery("select * from seller, department"
+			    + " where seller.DepartmentId = department.Id order by seller.Id");
 
 		    System.out.println("ID  |  NOME   |  BIRTHDATE   |   SALARY   | DEPARTMENT ID");
 		    while (rs.next()) {
@@ -138,8 +156,6 @@ public class Program {
 		}
 
 	    case 5:
-
-		DB.closeStatement(st);
 		DB.closeConnection();
 		flag = true;
 		break;
@@ -166,12 +182,11 @@ public class Program {
 	    int afectedRows = st.executeUpdate();
 	    rs = st.getGeneratedKeys();
 
-	    //System.out.println("Done!\nLinhas Afetadas: " + afectedRows);
-	    /*while (rs.next()) {
-		int id = rs.getInt(1);
-		System.out.println("Novo cadastro, ID: " + id);
-	    }
-*/
+	    // System.out.println("Done!\nLinhas Afetadas: " + afectedRows);
+	    /*
+	     * while (rs.next()) { int id = rs.getInt(1);
+	     * System.out.println("Novo cadastro, ID: " + id); }
+	     */
 	} catch (SQLException e) {
 	    throw new DbException(e.getMessage());
 	} finally {
@@ -189,7 +204,6 @@ public class Program {
 	    String name = rsmd.getColumnName(i);
 	    System.out.println("[ " + i + " ] - " + name);
 	}
-
     }
 
     private static void imprimirADdosAtuais(ResultSet rsImp, Statement stImp, String opcaoAlterar, int id)
@@ -225,15 +239,12 @@ public class Program {
 	return null;
     }
 
-    private static void imprimirIdName(ResultSet rsImp, Statement stImp, String opcaoAlterar) throws SQLException {
-	System.out.println("Escolha pelo ID a pessoa que você deseja alterar o " + opcaoAlterar);
-
+    private static void imprimirIdName(ResultSet rsImp, Statement stImp) throws SQLException {
 	rsImp = stImp.executeQuery("select Id, Name from seller");
 
 	while (rsImp.next()) {
 	    System.out.println(rsImp.getInt("Id") + " - " + rsImp.getString("Name"));
 	}
-
     }
 
     private static void atualizarDados(String opcaoAlterar, int id, PreparedStatement stA, Connection coon)
@@ -246,7 +257,7 @@ public class Program {
 	    stA.setDouble(1, newSalary);
 
 	} else if (opcaoAlterar.equals("Name") || opcaoAlterar.equals("Email")) {
-	    if (opcaoAlterar.equals("Name")){
+	    if (opcaoAlterar.equals("Name")) {
 		System.out.print("Novo nome: ");
 	    }
 	    if (opcaoAlterar.equals("Email")) {
@@ -266,7 +277,7 @@ public class Program {
 	}
 
 	int rowsAfected = stA.executeUpdate();
-	System.out.println("Done!"); //Linhas Afetadas: " + rowsAfected);
+	System.out.println("Done!"); // Linhas Afetadas: " + rowsAfected);
     }
 
     private static boolean confirmaTransacao(Connection coon) {
@@ -278,26 +289,27 @@ public class Program {
 	    if (op == 1) {
 		coon.commit();
 		return true;
-	    }else
+	    } else
 		coon.rollback();
 	    return false;
 
 	} catch (SQLException e) {
 	    try {
 		coon.rollback();
-		throw new DbException("Transação falhou! Banco de dados voltando ao estado anterior\nMotivo: " + e.getMessage());
+		throw new DbException(
+			"Transação falhou! Banco de dados voltando ao estado anterior\nMotivo: " + e.getMessage());
 	    } catch (SQLException e1) {
 		throw new DbException("Ops... erro ao tentar voltar a transação.\nMotivo: " + e1.getMessage());
 	    }
 	}
     }
-    
+
     public static void confirmarTransacao(Connection conn) {
 	if (confirmaTransacao(conn)) {
-		System.out.println("Done!");
-	    }else {
-		System.out.println("Dados não foram salvos");
-	    }
+	    System.out.println("Done!");
+	} else {
+	    System.out.println("Dados não foram salvos");
+	}
     }
 
 }
